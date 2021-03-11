@@ -3,8 +3,8 @@
 credentials Credentials;
 
 //Variables
-char url[33];
-char secret_key[33];
+char firebase_url[96];
+char firebase_key[64];
 bool connected_to_internet = false;
 const int Erasing_button = 4;
 
@@ -28,8 +28,8 @@ void setup(){
   }
 
   String auth_string = Credentials.EEPROM_Config();
-  auth_string.toCharArray(url, 33);
-  auth_string.toCharArray(secret_key, 33);
+  auth_string.toCharArray(firebase_url, 33);
+  auth_string.toCharArray(firebase_key, 33);
 
   if (Credentials.credentials_get()){
     //Configure firebase database

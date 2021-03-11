@@ -40,8 +40,7 @@ char _webpage[] PROGMEM = R"=====(
         var pass = document.getElementById('pass_cred').value;
         var url  = document.getElementById('firebase_url').value;
         var key  = document.getElementById('firebase_key').value;
-        var full_command = '#{"ssid":"'+ ssid +'", "pass":"' +pass +'","url":"'+ url +'","key":"'+ key +'"}';
-        console.log(full_command);
+        var full_command = '#{"ssid":"'+ ssid +'", "pass":"'+pass +'","url":"'+ url +'","key":"'+ key +'"}';
         connection.send(full_command);
         location.replace('http://'+location.hostname+'/submit');
       }
@@ -68,14 +67,16 @@ void _webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lengt
     case WStype_DISCONNECTED:
       Serial.printf("[%u] Disconnected!\n", num);
       break;
-    case WStype_CONNECTED: {
-        IPAddress ip = webSocket.remoteIP(num);
-        Serial.printf("[%u] Connection from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
 
-        // send message to client
-        webSocket.sendTXT(num, "Connected");
-      }
+    case WStype_CONNECTED: {
+      IPAddress ip = webSocket.remoteIP(num);
+      Serial.printf("[%u] Connection from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
+
+      // send message to client
+      webSocket.sendTXT(num, "Connected");
+    }
       break;
+
     case WStype_TEXT:
       Serial.printf("[%u] Get Text: %s\n", num, payload);
 
@@ -92,15 +93,16 @@ void _webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lengt
         String pass = doc["pass"];
         String url  = doc["url"];
         String key  = doc["key"];
-        Serial.println(ssid); Serial.println(pass);
+        Serial.println("");
 
 
         // Clearing EEPROM
         if (ssid.length() > 0 && pass.length() > 0) {
           Serial.println("Clearing EEPROOM");
-          for (int i = 0; i < 100; ++i) {
+          for (int i = 0; i < 192; ++i) {
             EEPROM.write(i, 0);
           }
+
           // Storing in EEPROM
           Serial.println("Writing EEPROOM SSID:");
           for (int i = 0; i < ssid.length(); ++i) {
@@ -110,25 +112,24 @@ void _webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lengt
           }
           Serial.println("Writing EEPROOM Password:");
           for (int i = 0; i < pass.length(); ++i) {
-            EEPROM.write(32 + i, pass[i]);
+            EEPROM.write(16 + i, pass[i]);
             Serial.print("Wrote: ");
             Serial.println(pass[i]);
           }
           Serial.println("Writing EEPROOM Firebase url:");
           for (int i = 0; i < url.length(); ++i) {
-            EEPROM.write(64 + i, url[i]);
+            EEPROM.write(32 + i, url[i]);
             Serial.print("Wrote: ");
             Serial.println(url[i]);
           }
           Serial.println("writing eeprom firebase key:");
           for (int i = 0; i < key.length(); ++i)
           {
-            EEPROM.write(64 + i, key[i]);
+            EEPROM.write(128 + i, key[i]);
             Serial.print("Wrote: ");
             Serial.println(key[i]);
           }
           EEPROM.commit();
-          delay(2000);
 
           //Restarting ESP board
           ESP.restart();
@@ -139,11 +140,10 @@ void _webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lengt
 }
 
 
-
 void credentials::Erase_eeprom() {
   EEPROM.begin(512); //Initialasing EEPROM
   Serial.println("Erasing...");
-    for (int i = 0; i < 100; ++i) {
+    for (int i = 0; i < 192; ++i) {
       EEPROM.write(i, 0);
     }
    EEPROM.commit();
@@ -154,77 +154,61 @@ String credentials::EEPROM_Config() {
   Serial.println();
   Serial.println();
 
-  //---------------------------------------- Read eeprom for ssid and pass
   Serial.println("Reading EEPROM");
 
-
-  for (int i = 0; i < 32; ++i)
-  {
+  for (int i = 0; i < 16; ++i) {
     ssid += char(EEPROM.read(i));
   }
   Serial.print("SSID: ");
   Serial.println(ssid);
 
-  for (int i = 32; i < 64; ++i)
-  {
+  for (int i = 16; i < 32; ++i) {
     pass += char(EEPROM.read(i));
   }
   Serial.print("Password: ");
   Serial.println(pass);
 
   String firebase_url = "";
-  for (int i = 64; i < 100; ++i)
-  {
+  for (int i = 32; i < 128; ++i) {
     firebase_url += char(EEPROM.read(i));
   }
   Serial.print("Firebase url: ");
   Serial.println(firebase_url);
-  return firebase_url;
   
   String firebase_key = "";
-  for (int i = 64; i < 100; ++i)
-  {
+  for (int i = 128; i < 192; ++i) {
     firebase_key += char(EEPROM.read(i));
   }
-  Serial.print("Firebase Key: ");
+  Serial.print("Firebase key: ");
   Serial.println(firebase_key);
-  return firebase_key;
-
+  return firebase_url, firebase_key;
 }
 
 
-
-bool credentials::credentials_get()
-{
-  if (_testWifi())
-  {
+bool credentials::credentials_get() {
+  if (_testWifi()) {
     Serial.println("Succesfully Connected!!!");
     return true;
   }
-  else
-  {
+  else {
     Serial.println("Turning the HotSpot On");
     return false;
   }
 }
 
 
-
-void credentials::setupAP(char* softap_ssid, char* softap_pass)
-{
-  
+void credentials::setupAP(char* softap_ssid, char* softap_pass) {
   WiFi.disconnect();
   delay(100);
   WiFi.softAP(softap_ssid,softap_pass);
   _launchWeb();
   Serial.println("Server Started");
-   webSocket.begin();
-    webSocket.onEvent(_webSocketEvent);
+  webSocket.begin();
+  webSocket.onEvent(_webSocketEvent);
 }
 
 
-
-bool credentials::_testWifi(){
+bool credentials::_testWifi() {
   int c = 0;
   Serial.println("Waiting for Wifi to connect");
   char* my_ssid = &ssid[0];
@@ -232,12 +216,11 @@ bool credentials::_testWifi(){
 
   WiFi.begin(my_ssid, my_pass);
   while ( c < 20 ) {
-    if (WiFi.status() == WL_CONNECTED)
-    {
+    if (WiFi.status() == WL_CONNECTED) {
       return true;
     }
     delay(500);
-    Serial.print(". ");
+    Serial.print(".");
     c++;
   }
   Serial.println("");
@@ -246,43 +229,38 @@ bool credentials::_testWifi(){
 }
 
 
-
 // This is the function which will be called when an invalid page is called from client
-void notFound(AsyncWebServerRequest *request)
-{
+void notFound(AsyncWebServerRequest *request) {
   request->send(404, "text/plain", "Not found");
 }
 
 
-void credentials::_createWebServer()
-{
-server.on("/", [](AsyncWebServerRequest * request) {
-  request->send_P(200, "text/html", _webpage);
-});
-
-// Send a GET request to <IP>/get?message=<message>
-server.on("/submit", HTTP_GET, [] (AsyncWebServerRequest * request) {
-  String message;
-    message = "Credentials received by ESP board!!!";
-   request->send(200, "text/plain", message);
-});
-
-server.onNotFound(notFound);
-server.begin();
+void credentials::_createWebServer() {
+  server.on("/", [](AsyncWebServerRequest * request) {
+    request->send_P(200, "text/html", _webpage);
+  });
   
+  // Send a GET request to <IP>/get?message=<message>
+  server.on("/submit", HTTP_GET, [] (AsyncWebServerRequest * request) {
+    String message;
+    message = "Credentials received by ESP board!!!";
+    request->send(200, "text/plain", message);
+  });
+  
+  server.onNotFound(notFound);
+  server.begin();
 }
 
-void credentials::_launchWeb()
-{
+
+void credentials::_launchWeb() {
   Serial.println("");
   Serial.print("SoftAP IP: ");
   Serial.println(WiFi.softAPIP());
   _createWebServer();
   // Start the server
-
 }
 
-void credentials::server_loops()
-{ 
-     webSocket.loop();
+
+void credentials::server_loops() {
+  webSocket.loop();
 }
